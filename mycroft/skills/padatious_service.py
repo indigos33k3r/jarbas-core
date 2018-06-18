@@ -25,9 +25,6 @@ from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
 
 
-PADATIOUS_VERSION = '0.3.7'  # Also update in requirements.txt
-
-
 class PadatiousService(FallbackSkill):
     def __init__(self, emitter, service):
         FallbackSkill.__init__(self)
@@ -45,10 +42,6 @@ class PadatiousService(FallbackSkill):
             except OSError:
                 pass
             return
-        ver = get_distribution('padatious').version
-        if ver != PADATIOUS_VERSION:
-            LOG.warning('Using Padatious v' + ver + '. Please re-run ' +
-                        'dev_setup.sh to install ' + PADATIOUS_VERSION)
 
         self.container = IntentContainer(intent_cache)
 
@@ -64,10 +57,13 @@ class PadatiousService(FallbackSkill):
         self.train_time = get_time() + self.train_delay
 
     def train(self, message=None):
+        single_thread = message.data.get('single_thread', False)
         self.finished_training_event.clear()
+
         LOG.info('Training...')
-        self.container.train()
+        self.container.train(single_thread=single_thread)
         LOG.info('Training complete.')
+
         self.finished_training_event.set()
         self.finished_initial_train = True
 
@@ -117,7 +113,7 @@ class PadatiousService(FallbackSkill):
 
         data.matches['utterance'] = utt
 
-        self.service.add_active_skill(int(data.name.split(':')[0]))
+        self.service.add_active_skill(data.name.split(':')[0])
 
         self.emitter.emit(message.reply(data.name, data=data.matches))
         return True

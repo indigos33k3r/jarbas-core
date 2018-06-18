@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 import unittest
-from Queue import Queue
 
 import speech_recognition
 from os.path import dirname, join
@@ -21,6 +20,7 @@ from speech_recognition import WavFile, AudioData
 
 from mycroft.client.speech.listener import AudioConsumer, RecognizerLoop
 from mycroft.stt import MycroftSTT
+from queue import Queue
 
 
 class MockRecognizer(object):
@@ -71,7 +71,6 @@ class AudioConsumerTest(unittest.TestCase):
         the audio. ``tolerance`` is an acceptable margin error for the distance
         between the ideal and actual values found by the ``WordExtractor``
         """
-
         # TODO: implement WordExtractor test without relying on the listener
         return
 

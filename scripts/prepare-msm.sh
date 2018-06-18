@@ -21,6 +21,7 @@ while [ -h "$SOURCE" ]; do
   [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
 PARENTDIR=$(dirname "$DIR")
 DEFAULT_CONFIG="$PARENTDIR/mycroft/configuration/mycroft.conf"
 SYSTEM_CONFIG="/etc/mycroft/mycroft.conf"

@@ -31,10 +31,7 @@ from mycroft.util.audio_test import record
 from mycroft.messagebus.client.ws import WebsocketClient
 from threading import Thread
 from mycroft.util.log import LOG
-if sys.version_info[0] < 3:
-    from Queue import Queue
-else:
-    from queue import Queue
+from queue import Queue
 
 
 class Enclosure(object):
@@ -389,7 +386,7 @@ class EnclosureReader(Thread):
             try:
                 data = self.serial.readline()[:-2]
                 if data:
-                    self.process(data)
+                    self.process(data.decode())
             except Exception as e:
                 LOG.error("Reading error: {0}".format(e))
 
@@ -534,8 +531,8 @@ class EnclosureWriter(Thread):
     def flush(self):
         while self.alive:
             try:
-                cmd = self.commands.get()
-                self.serial.write(cmd + '\n')
+                cmd = self.commands.get() + '\n'
+                self.serial.write(cmd.encode())
                 self.commands.task_done()
             except Exception as e:
                 LOG.error("Writing error: {0}".format(e))

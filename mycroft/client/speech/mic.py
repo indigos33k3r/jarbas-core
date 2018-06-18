@@ -13,26 +13,23 @@
 # limitations under the License.
 #
 import audioop
-import collections
-import datetime
-from hashlib import md5
-import shutil
-from tempfile import gettempdir
-from threading import Thread, Lock
 from time import sleep, time as get_time
 
+import collections
+import datetime
+import json
 import os
 import pyaudio
+import requests
 import speech_recognition
-from os import mkdir
-from os.path import isdir, join, expanduser, isfile
+from hashlib import md5
+from io import BytesIO, StringIO
 from speech_recognition import (
     Microphone,
     AudioSource,
     AudioData
 )
-import requests
-from subprocess import check_output
+from threading import Thread, Lock
 
 from mycroft.configuration import Configuration
 from mycroft.util import (
@@ -177,9 +174,8 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         self.config = Configuration.get()
         listener_config = self.config.get('listener')
         # disable upload
-        LOG.debug("upload config disabled")
-        self.upload_config = {"enable": False}
-        # self.upload_config = listener_config.get('wake_word_upload')
+        self.upload_url = listener_config['wake_word_upload']['url']
+        self.upload_disabled = True
         self.wake_word_name = wake_word_recognizer.key_phrase
 
         self.overflow_exc = listener_config.get('overflow_exception', False)
@@ -192,10 +188,7 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         # check the config for the flag to save wake words.
 
         self.save_utterances = listener_config.get('record_utterances', False)
-        self.save_wake_words = listener_config.get('record_wake_words')  # \
-        # or self.upload_config['enable'] or self.config['opt_in']
         self.upload_lock = Lock()
-        self.save_wake_words_dir = join(gettempdir(), 'mycroft_wake_words')
         self.filenames_to_upload = []
         self.mic_level_file = os.path.join(get_ipc_directory(), "mic_level")
         self._stop_signaled = False
@@ -206,7 +199,7 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         num_phonemes = wake_word_recognizer.num_phonemes
         len_phoneme = listener_config.get('phoneme_duration', 120) / 1000.0
         self.TEST_WW_SEC = num_phonemes * len_phoneme
-        self.SAVED_WW_SEC = 10 if self.save_wake_words else self.TEST_WW_SEC
+        self.SAVED_WW_SEC = max(3, self.TEST_WW_SEC)
 
         try:
             self.account_id = "666"#DeviceApi().get()['user']['uuid']
@@ -339,36 +332,7 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         """
         self._stop_signaled = True
 
-    def _upload_file(self, filename):
-        # disable upload
-        # server = self.upload_config['server']
-        # keyfile = resolve_resource_file('wakeword_rsa')
-        # userfile = expanduser('~/.mycroft/wakeword_rsa')
-
-        # if not isfile(userfile):
-        #    shutil.copy2(keyfile, userfile)
-        #    os.chmod(userfile, 0o600)
-        #    keyfile = userfile
-
-        # address = self.upload_config['user'] + '@' + \
-        #    server + ':' + self.upload_config['folder']
-
-        # self.upload_lock.acquire()
-        # try:
-        #    self.filenames_to_upload.append(filename)
-        #    for i, fn in enumerate(self.filenames_to_upload):
-        #        LOG.debug('Uploading ' + fn + '...')
-        #        os.chmod(fn, 0o666)
-        #        cmd = 'scp -o StrictHostKeyChecking=no -P ' + \
-        #              str(self.upload_config['port']) + ' -i ' + \
-        #              keyfile + ' ' + fn + ' ' + address
-        #        if os.system(cmd) == 0:
-        #            del self.filenames_to_upload[i]
-        #            os.remove(fn)
-        #        else:
-        #            LOG.debug('Could not upload ' + fn + ' to ' + server)
-        # finally:
-        #    self.upload_lock.release()
+    def _upload_wake_word(self, audio):
         LOG.debug("upload disabled but tried to execute, neutralized")
         return
 
@@ -403,13 +367,6 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         idx_energy = 0
         avg_energy = 0.0
         energy_avg_samples = int(5 / sec_per_buffer)  # avg over last 5 secs
-
-        ww_module = self.wake_word_recognizer.__class__.__name__
-        if ww_module == 'PreciseHotword':
-            _, model_path = self.wake_word_recognizer.get_model_info()
-            model_hash = check_output(['md5sum', model_path]).split()[0]
-        else:
-            model_hash = '0'
         counter = 0
 
         while not said_wake_word and not self._stop_signaled:

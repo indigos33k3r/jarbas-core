@@ -55,8 +55,8 @@ show_help() {
 	echo "not as root/sudo."
 }
 
-opt_skipmimic=false # do not install mimic by default
-opt_allowroot=true # if you are using this fork you are supposed to know what you are doing
+opt_skipmimic=false
+opt_allowroot=false
 
 for var in "$@"
 do
@@ -84,45 +84,6 @@ found_exe() {
     hash "$1" 2>/dev/null
 }
 
-SOURCE="${BASH_SOURCE[0]}"
-DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-DEFAULT_CONFIG="$DIR/mycroft/configuration/mycroft.conf"
-SYSTEM_CONFIG="/etc/mycroft/mycroft.conf"
-USER_CONFIG="$HOME/.mycroft/mycroft.conf"
-function get_config_value() {
-  key="$1"
-  default="$2"
-  value="null"
-  for file in $USER_CONFIG $SYSTEM_CONFIG $DEFAULT_CONFIG;   do
-    if [[ -r $file ]] ; then
-        # remove comments in config for jq to work
-        # assume they may be preceded by whitespace, but nothing else
-        parsed="$( sed 's:^\s*//.*$::g' $file )"
-        echo "$parsed" >> "$DIR/mycroft/configuration/sys.conf"
-        value=$( jq -r "$key" "$DIR/mycroft/configuration/sys.conf" )
-        rm -rf "$DIR/mycroft/configuration/sys.conf"
-        if [[ "${value}" != "null" ]] ;  then
-            echo "$value"
-            return
-
-        fi
-    fi
-  done
-  echo "$default"
-}
-
-# Determine the platform
-mycroft_platform="$(get_config_value '.enclosure.platform' 'null')"
-if [[ "${mycroft_platform}" == "null" ]] ; then
-   if [[ "$(hostname)" == "picroft" ]] ; then
-      mycroft_platform="picroft"
-   elif [[ "$(hostname)" =~ "mark_1" ]] ; then
-      mycroft_platform="mycroft_mark_1"
-   fi
-fi
-
-
-use_virtualenvwrapper="$(get_config_value '.enclosure.use_virtualenvwrapper' 'true')"
 install_deps() {
     echo "Installing packages..."
     if found_exe sudo; then
@@ -130,10 +91,10 @@ install_deps() {
     fi
 
     if found_exe zypper; then
-	$SUDO zypper install -y git python espeak glibc-devel linux-glibc-devel python-devel python2-virtualenv python2-gobject-devel python-virtualenvwrapper libtool libffi-devel libopenssl-devel autoconf automake bison swig glib2-devel portaudio-devel mpg123 flac curl libicu-devel pkg-config pkg-config libjpeg-devel libfann-devel python-curses
+	$SUDO zypper install -y git python glibc-devel linux-glibc-devel python-devel python2-virtualenv python2-gobject-devel python-virtualenvwrapper libtool libffi-devel libopenssl-devel autoconf automake bison swig glib2-devel portaudio-devel mpg123 flac curl libicu-devel pkg-config pkg-config libjpeg-devel libfann-devel python-curses
 	$SUDO zypper install -y -t pattern devel_C_C++
     elif found_exe apt-get; then
-        $SUDO apt-get install -y git python python-dev python-setuptools python-virtualenv python-gobject-2-dev libpulse-dev virtualenvwrapper libtool libffi-dev libssl-dev autoconf automake bison swig libglib2.0-dev s3cmd portaudio19-dev mpg123 screen flac curl libicu-dev pkg-config automake libjpeg-dev libfann-dev build-essential jq vlc mplayer mpv
+        $SUDO apt-get install -y git python3 python3-dev python-setuptools python-gobject-2-dev libtool libffi-dev libssl-dev autoconf automake bison swig libglib2.0-dev portaudio19-dev mpg123 screen flac curl libicu-dev pkg-config automake libjpeg-dev libfann-dev build-essential jq
     elif found_exe pacman; then
         $SUDO pacman -S --needed --noconfirm git python2 python2-pip python2-setuptools python2-virtualenv python2-gobject python-virtualenvwrapper libtool libffi openssl autoconf bison swig glib2 portaudio mpg123 screen flac curl pkg-config icu automake libjpeg-turbo base-devel jq
         pacman -Qs "^fann$" &> /dev/null || (
@@ -144,7 +105,7 @@ install_deps() {
             rm -rf fann
         )
     elif found_exe dnf; then
-        $SUDO dnf install -y git python python-devel python-pip python-setuptools python-virtualenv pygobject2-devel python-virtualenvwrapper libtool libffi-devel openssl-devel autoconf bison swig glib2-devel portaudio-devel mpg123 mpg123-plugins-pulseaudio screen curl pkgconfig libicu-devel automake libjpeg-turbo-devel fann-devel gcc-c++ redhat-rpm-config jq
+        $SUDO dnf install -y git python3 python3-devel python3-pip python3-setuptools python3-virtualenv pygobject3-devel libtool libffi-devel openssl-devel autoconf bison swig glib2-devel portaudio-devel mpg123 mpg123-plugins-pulseaudio screen curl pkgconfig libicu-devel automake libjpeg-turbo-devel fann-devel gcc-c++ redhat-rpm-config jq
     else
         if found_exe tput; then
 			green="$(tput setaf 2)"
@@ -158,23 +119,19 @@ install_deps() {
     fi
 }
 
+TOP=$(cd $(dirname $0) && pwd -L)
+VIRTUALENV_ROOT=${VIRTUALENV_ROOT:-"${TOP}/.venv"}
+
+install_venv() {
+    python3 -m venv "${VIRTUALENV_ROOT}/" --without-pip
+    curl https://bootstrap.pypa.io/get-pip.py | "${VIRTUALENV_ROOT}/bin/python"
+}
+
 install_deps
 
 # Configure to use the standard commit template for
 # this repo only.
 git config commit.template .gitmessage
-
-TOP=$(cd $(dirname $0) && pwd -L)
-
-
-# this uses a "jarbas" virtual env instead of "mycroft"
-if [[ ${use_virtualenvwrapper} == "true" ]] ; then
-    if [ -z "$WORKON_HOME" ]; then
-        VIRTUALENV_ROOT=${VIRTUALENV_ROOT:-"${HOME}/.virtualenvs/jarbas"}
-    else
-        VIRTUALENV_ROOT="$WORKON_HOME/jarbas"
-    fi
-fi
 
 # Check whether to build mimic (it takes a really long time!)
 build_mimic='y'
@@ -184,13 +141,13 @@ else
   # first, look for a build of mimic in the folder
   has_mimic=""
   if [[ -f ${TOP}/mimic/bin/mimic ]] ; then
-      has_mimic=$( ${TOP}/mimic/bin/mimic -lv | grep Voice )
+      has_mimic=$( ${TOP}/mimic/bin/mimic -lv | grep Voice ) || true
   fi
 
   # in not, check the system path
   if [ "$has_mimic" = "" ] ; then
     if [ -x "$(command -v mimic)" ]; then
-      has_mimic="$( mimic -lv | grep Voice )"
+      has_mimic="$( mimic -lv | grep Voice )" || true
     fi
   fi
 
@@ -200,48 +157,45 @@ else
   fi
 fi
 
-cd "${TOP}"
-if [[ ${use_virtualenvwrapper} == "true" ]] ; then
-# create virtualenv, consistent with virtualenv-wrapper conventions
-    echo "creating venv"
-    if [ ! -d "${VIRTUALENV_ROOT}" ]; then
-       mkdir -p $(dirname "${VIRTUALENV_ROOT}")
-      virtualenv -p python2.7 "${VIRTUALENV_ROOT}"
-    fi
-    source "${VIRTUALENV_ROOT}/bin/activate"
-    cd "${TOP}"
-    easy_install pip==9.0.1 # force version of pip
-    pip install --upgrade virtualenv
-
-    # Add mycroft-core to the virtualenv path
-    # (This is equivalent to typing 'add2virtualenv $TOP', except
-    # you can't invoke that shell function from inside a script)
-    VENV_PATH_FILE="${VIRTUALENV_ROOT}/lib/python2.7/site-packages/_virtualenv_path_extensions.pth"
-    if [ ! -f "$VENV_PATH_FILE" ] ; then
-        echo "import sys; sys.__plen = len(sys.path)" > "$VENV_PATH_FILE" || return 1
-        echo "import sys; new=sys.path[sys.__plen:]; del sys.path[sys.__plen:]; p=getattr(sys,'__egginsert',0); sys.path[p:p]=new; sys.__egginsert = p+len(new)" >> "$VENV_PATH_FILE" || return 1
-    fi
-
-    if ! grep -q "jarbas-core" $VENV_PATH_FILE; then
-       echo "Adding jarbas-core to virtualenv path"
-       sed -i.tmp '1 a\
-    '"$TOP"'
-    ' "${VENV_PATH_FILE}"
-    fi
-else
-    echo "no venv"
-    # no venv, use any pip version
-    easy_install pip
+if [ ! -x "${VIRTUALENV_ROOT}/bin/activate" ]; then
+  install_venv
 fi
 
-# install requirements (except pocketsphinx)
-# removing the pip2 explicit usage here for consistency with the above use.
+# Start the virtual environment
+source "${VIRTUALENV_ROOT}/bin/activate"
+cd "${TOP}"
+
+easy_install pip==9.0.1 # force version of pip
+
+PYTHON=$( python -c "import sys;print('python{}.{}'.format(sys.version_info[0], sys.version_info[1]))" )
+
+# Add mycroft-core to the virtualenv path
+# (This is equivalent to typing 'add2virtualenv $TOP', except
+# you can't invoke that shell function from inside a script)
+VENV_PATH_FILE="${VIRTUALENV_ROOT}/lib/$PYTHON/site-packages/_virtualenv_path_extensions.pth"
+if [ ! -f "$VENV_PATH_FILE" ] ; then
+    echo "import sys; sys.__plen = len(sys.path)" > "$VENV_PATH_FILE" || return 1
+    echo "import sys; new=sys.path[sys.__plen:]; del sys.path[sys.__plen:]; p=getattr(sys,'__egginsert',0); sys.path[p:p]=new; sys.__egginsert = p+len(new)" >> "$VENV_PATH_FILE" || return 1
+fi
+
+if ! grep -q "$TOP" $VENV_PATH_FILE; then
+   echo "Adding mycroft-core to virtualenv path"
+   sed -i.tmp '1 a\
+'"$TOP"'
+' "${VENV_PATH_FILE}"
+fi
+
+# install required python modules
 if ! pip install -r requirements.txt; then
     echo "Warning: Failed to install all requirements. Continue? y/N"
     read -n1 continue
     if [[ "$continue" != "y" ]] ; then
         exit 1
     fi
+fi
+
+if ! pip install -r test-requirements.txt; then
+  echo "Warning test requirements wasn't installed, Note: normal operation should still work fine..."
 fi
 
 SYSMEM=$(free|awk '/^Mem:/{print $2}')
@@ -266,20 +220,9 @@ else
   echo "Skipping mimic build."
 fi
 
-
-# install opencv
-#if [[ "$mycroft_platform" == "picroft" || "$mycroft_platform" ==
-#"mycroft_mark_1" ]] ; then
-#    "${TOP}/scripts/install_opencv_pi.sh"
-#else
-#    "${TOP}/scripts/install_opencv.sh"
-#fi
-
 # set permissions for common scripts
-chmod +x jarbas.sh
-chmod +x start.sh
-chmod +x dev_setup.sh
+chmod +x start-mycroft.sh
+chmod +x stop-mycroft.sh
 
-md5sum requirements.txt dev_setup.sh > .installed
-
-
+#Store a fingerprint of setup
+md5sum requirements.txt test-requirements.txt dev_setup.sh > .installed

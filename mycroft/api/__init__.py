@@ -137,7 +137,7 @@ class Api(object):
         #            json[k] = None
         #    params["json"] = json
         #return json
-        return None
+        return {}
 
     def build_query(self, params):
         #return params.get("query")

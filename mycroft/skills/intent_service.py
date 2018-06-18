@@ -15,6 +15,7 @@
 import time
 from adapt.context import ContextManagerFrame
 from adapt.engine import IntentDeterminationEngine
+from adapt.intent import IntentBuilder
 
 from mycroft.configuration import Configuration
 from mycroft.messagebus.message import Message
@@ -22,9 +23,11 @@ from mycroft.skills.core import open_intent_envelope
 from mycroft.util.log import LOG
 from mycroft.util.parse import normalize
 from mycroft.metrics import report_timing, Stopwatch
-# python 2+3 compatibility
-from past.builtins import basestring
-from future.builtins import range
+
+
+class AdaptIntent(IntentBuilder):
+    def __init__(self, name=''):
+        super().__init__(name)
 
 
 class ContextManager(object):
@@ -174,7 +177,7 @@ class IntentService(object):
         Returns:
             (str) Skill name or the skill id if the skill wasn't found
         """
-        return self.skills_map.get(int(skill_id), skill_id)
+        return self.skills_map.get(skill_id, skill_id)
 
     def handle_skill_load(self, message):
         name = message.data.get("name")
@@ -237,10 +240,10 @@ class IntentService(object):
             self.do_converse(None, skill[0], lang)
 
     def do_converse(self, utterances, skill_id, lang):
-        self.emitter.emit(Message("skill.converse.request", {
-            "skill_id": skill_id, "utterances": utterances, "lang": lang}))
         self.waiting = True
         self.result = False
+        self.emitter.emit(Message("skill.converse.request", {
+            "skill_id": skill_id, "utterances": utterances, "lang": lang}))
         start_time = time.time()
         t = 0
         while self.waiting and t < 5:
@@ -419,7 +422,7 @@ class IntentService(object):
         if intent:
             self.update_context(intent)
             # update active skills
-            skill_id = int(intent['intent_type'].split(":")[0])
+            skill_id = best_intent['intent_type'].split(":")[0]
             self.add_active_skill(skill_id)
             return intent
 
@@ -471,7 +474,7 @@ class IntentService(object):
         context = message.data.get('context')
         word = message.data.get('word') or ''
         # if not a string type try creating a string from it
-        if not isinstance(word, basestring):
+        if not isinstance(word, str):
             word = str(word)
         entity['data'] = [(word, context)]
         entity['match'] = word

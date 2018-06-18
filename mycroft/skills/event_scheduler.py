@@ -16,15 +16,12 @@ import json
 import time
 from threading import Thread
 
-from os.path import isfile
+from os.path import isfile, join, expanduser
 
+from mycroft.configuration import Configuration
 from mycroft.messagebus.message import Message
 from mycroft.util.log import LOG
-import sys
-if sys.version_info[0] < 3:
-    from Queue import Queue
-else:
-    from queue import Queue
+from queue import Queue
 
 
 def repeat_time(sched_time, repeat):
@@ -45,7 +42,7 @@ def repeat_time(sched_time, repeat):
 
 
 class EventScheduler(Thread):
-    def __init__(self, emitter, schedule_file='/opt/mycroft/schedule.json'):
+    def __init__(self, emitter, schedule_file='schedule.json'):
         """
             Create an event scheduler thread. Will send messages at a
             predetermined time to the registered targets.
@@ -55,10 +52,12 @@ class EventScheduler(Thread):
                 schedule_file:  File to store pending events to on shutdown
         """
         super(EventScheduler, self).__init__()
+        data_dir = expanduser(Configuration.get()['data_dir'])
+
         self.events = {}
         self.emitter = emitter
         self.isRunning = True
-        self.schedule_file = schedule_file
+        self.schedule_file = join(data_dir, schedule_file)
         if self.schedule_file:
             self.load()
 
@@ -85,7 +84,7 @@ class EventScheduler(Thread):
                 try:
                     json_data = json.load(f)
                 except Exception as e:
-                    LOG.error(e.message)
+                    LOG.error(e)
             current_time = time.time()
             for key in json_data:
                 event_list = json_data[key]
