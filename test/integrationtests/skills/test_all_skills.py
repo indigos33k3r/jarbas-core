@@ -68,6 +68,7 @@ class SkillTestStatus(object):
 
         Contents are created during test
     """
+
     def __init__(self):
         self.intent_list = {}
 
@@ -84,6 +85,7 @@ class IntentTestSequenceMeta(type):
     """Metaclass to create test case for each skill
 
     """
+
     def __new__(mcs, name, bases, d):
         def gen_test(skill):
             def test(self):

@@ -174,7 +174,7 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         self.config = Configuration.get()
         listener_config = self.config.get('listener')
         # disable upload
-        self.upload_url = listener_config['wake_word_upload']['url']
+        self.upload_url = ""
         self.upload_disabled = True
         self.wake_word_name = wake_word_recognizer.key_phrase
 
@@ -188,6 +188,7 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
         # check the config for the flag to save wake words.
 
         self.save_utterances = listener_config.get('record_utterances', False)
+        self.save_wake_words = listener_config.get('record_hotwords', False)
         self.upload_lock = Lock()
         self.filenames_to_upload = []
         self.mic_level_file = os.path.join(get_ipc_directory(), "mic_level")
@@ -442,28 +443,26 @@ class ResponsiveRecognizer(speech_recognition.Recognizer):
                     if self.save_wake_words:
                         audio = self._create_audio_data(byte_data, source)
 
-                        if not isdir(self.save_wake_words_dir):
-                            mkdir(self.save_wake_words_dir)
-                        dr = self.save_wake_words_dir
+                        # if not os.path.exists(self.save_wake_words_dir):
+                        #    os.makedirs(self.save_wake_words_dir)
+                        # dr = self.save_wake_words_dir
 
-                        components = [
-                            self.wake_word_name.replace(' ', '-'),
-                            md5(ww_module.encode('utf-8')).hexdigest(),
-                            str(int(1000 * get_time())),
-                            #SessionManager.get().session_id,
-                            #self.account_id,
-                            model_hash
-                        ]
+                        # components = [
+                        #    self.wake_word_name.replace(' ', '-'),
+                        #    md5(ww_module.encode('utf-8')).hexdigest(),
+                        #    str(int(1000 * get_time()))
+                        # ]
 
 
                         # disable metrics
                         LOG.debug("metrics disabled")
+                        LOG.debug("save hot word disabled")
                         # sid = SessionManager.get().session_id
                         # uid = IdentityManager.get().uuid
                         # fn = join(dr, '.'.join([ww, md, stamp, sid, aid]) + '.wav')fn = join(dr, '.'.join([ww, md, stamp]) + '.wav')
-                        fn = join(dr, '.'.join(components) + '.wav')
-                        with open(fn, 'wb') as f:
-                            f.write(audio.get_wav_data())
+                        # fn = os.path.join(dr, '.'.join(components) + '.wav')
+                        # with open(fn, 'wb') as f:
+                        #    f.write(audio.get_wav_data())
 
                         # disable upload
                         LOG.debug("upload disabled")

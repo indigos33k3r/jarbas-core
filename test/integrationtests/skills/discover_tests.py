@@ -64,11 +64,11 @@ def discover_tests(skills_dir):
 
 def get_skills_dir():
     return (
-        expanduser(os.environ.get('SKILLS_DIR', '')) or
-        expanduser(join(
-            Configuration.get()['data_dir'],
-            Configuration.get()['skills']['msm']['directory']
-        ))
+            expanduser(os.environ.get('SKILLS_DIR', '')) or
+            expanduser(join(
+                Configuration.get()['data_dir'],
+                Configuration.get()['skills']['msm']['directory']
+            ))
     )
 
 
@@ -84,7 +84,7 @@ class TestCase(object):
         [(skill, test) for test in tests[skill]]
         for skill in tests.keys()
         if not skill_dir or abspath(skill).startswith(abspath(skill_dir))
-        ], []))
+    ], []))
     def test_skill(self, skill, test):
         example, test_env = test
         if test_env:

@@ -1,6 +1,7 @@
 import time
 
 from mycroft.util import play_wav
+from mycroft.util.log import LOG
 from mycroft.tts import TTS, TTSValidator
 from mycroft.configuration import Configuration
 from mycroft import MYCROFT_ROOT_PATH
@@ -28,9 +29,9 @@ class BeepSpeak(TTS):
     def verify(self, string):
         for char in string:
             if char.upper() not in self.code and char != ' ':
-                print 'Error the character ' + char + ' cannot be ' \
-                                                      'translated to ' \
-                                                      'beep_speak'
+                LOG.warn('Error the character ' + char + ' cannot be ' \
+                                                         'translated to ' \
+                                                         'beep_speak')
                 string.replace(char.upper(), "").replace(char, "")
 
     def execute(self, msg):

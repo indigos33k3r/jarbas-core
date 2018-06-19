@@ -22,6 +22,7 @@ import mycroft.configuration
 from mycroft.util.log import LOG
 
 from test.util import base_config
+
 CONFIG = base_config()
 CONFIG.merge(
     {

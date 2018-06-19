@@ -63,6 +63,7 @@ class IntentTestSequenceMeta(type):
             def test(self):
                 if not SkillTest(a, b, self.emitter).run(self.loader):
                     assert False
+
             return test
 
         tests = discover_tests()

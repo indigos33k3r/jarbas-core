@@ -296,7 +296,7 @@ class SkillManager(Thread):
         installed_skills = self.load_installed_skills()
         default_groups = dict(self.msm.repo.get_default_skill_names())
         default_names = set(chain(default_groups['default'],
-                                  default_groups[self.msm.platform]))
+                                  default_groups.get(self.msm.platform, {})))
 
         default_skill_errored = False
 

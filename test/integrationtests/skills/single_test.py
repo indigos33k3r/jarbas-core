@@ -82,6 +82,7 @@ class IntentTestSequenceMeta(type):
                 return test_env_test
             else:
                 return test
+
         tests, test_envs = discover_tests()
         for skill in tests.keys():
             skill_name = os.path.basename(skill)  # Path of the skill

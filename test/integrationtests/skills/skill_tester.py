@@ -154,6 +154,7 @@ class MockSkillsLoader(object):
         def make_response(_):
             data = dict(result=False)
             self.emitter.emit(Message('skill.converse.response', data))
+
         self.emitter.on('skill.converse.request', make_response)
 
     def load_skills(self):
@@ -211,6 +212,7 @@ class SkillTest(object):
                 print(">" + utt)
                 print("Responding with ", response)
                 return response
+
             s.get_response = get_response
 
         # If we keep track of test status for the entire skill, then
@@ -257,7 +259,7 @@ class SkillTest(object):
         # Wait up to X seconds for the test_case to complete
         timeout = time.time() + int(test_case.get('evaluation_timeout')) \
             if test_case.get('evaluation_timeout', None) and \
-            isinstance(test_case['evaluation_timeout'], int) \
+               isinstance(test_case['evaluation_timeout'], int) \
             else time.time() + DEFAULT_EVALUAITON_TIMEOUT
         while not evaluation_rule.all_succeeded():
             try:
