@@ -120,7 +120,7 @@ SHORT_SCALE_EN = {
     10e100: "googol"
 }
 
-CARDINAL_STRING_EN = {
+SHORT_ORDINAL_STRING_EN = {
     1: 'first',
     2: 'second',
     3: 'third',
@@ -140,8 +140,58 @@ CARDINAL_STRING_EN = {
     17: 'seventeenth',
     18: 'eighteenth',
     19: 'nineteenth',
-    20: 'twentyith'
-    # TODO > 20
+    20: 'twentyith',
+    # TODO 20 - 100
+    10e-3: "hundredth",
+    1e-3: "thousandth",
+    1e-6: "millionth",
+    1e-9: "billionth",
+    1e-12: "trillionth",
+    1e-15: "quadrillionth",
+    1e-18: "quintillionth",
+    1e-21: "sextillionth",
+    1e-24: "septillionth",
+    1e-27: "octillionth",
+    1e-30: "nonillionth",
+    1e-33: "decillionth"
+    # TODO > 1e-33
+}
+
+LONG_ORDINAL_STRING_EN = {
+    1: 'first',
+    2: 'second',
+    3: 'third',
+    4: 'forth',
+    5: 'fifth',
+    6: 'sixth',
+    7: 'seventh',
+    8: 'eigth',
+    9: 'ninth',
+    10: 'tenth',
+    11: 'eleventh',
+    12: 'twelveth',
+    13: 'thirteenth',
+    14: 'fourteenth',
+    15: 'fifteenth',
+    16: 'sixteenth',
+    17: 'seventeenth',
+    18: 'eighteenth',
+    19: 'nineteenth',
+    20: 'twentyith',
+    # TODO 20 - 100
+    10e-3: "hundredth",
+    1e-3: "thousandth",
+    1e-6: "millionth",
+    1e-12: "billionth",
+    1e-18: "trillionth",
+    1e-24: "quadrillionth",
+    1e-30: "quintillionth",
+    1e-36: "sextillionth",
+    1e-42: "septillionth",
+    1e-48: "octillionth",
+    1e-54: "nonillionth",
+    1e-60: "decillionth"
+    # TODO > 1e-60
 }
 
 
@@ -172,8 +222,12 @@ def extractnumber_en(text, short_scale=True):
         }
         check_duplicates = ["power"]
         # cardinals
-        cards = [CARDINAL_STRING_EN[c] for c in CARDINAL_STRING_EN.keys()]
-
+        if short_scale:
+            cards = [SHORT_ORDINAL_STRING_EN[c]
+                     for c in SHORT_ORDINAL_STRING_EN.keys()]
+        else:
+            cards = [LONG_ORDINAL_STRING_EN[c]
+                     for c in LONG_ORDINAL_STRING_EN.keys()]
         words = text.split(" ")
         for idx, word in enumerate(words):
             prev_word = words[idx - 1] if idx > 0 else ""
