@@ -120,6 +120,30 @@ SHORT_SCALE_EN = {
     10e100: "googol"
 }
 
+CARDINAL_STRING_EN = {
+    1: 'first',
+    2: 'second',
+    3: 'third',
+    4: 'forth',
+    5: 'fifth',
+    6: 'sixth',
+    7: 'seventh',
+    8: 'eigth',
+    9: 'ninth',
+    10: 'tenth',
+    11: 'eleventh',
+    12: 'twelveth',
+    13: 'thirteenth',
+    14: 'fourteenth',
+    15: 'fifteenth',
+    16: 'sixteenth',
+    17: 'seventeenth',
+    18: 'eighteenth',
+    19: 'nineteenth',
+    20: 'twentyith'
+    # TODO > 20
+}
+
 
 def extractnumber_en(text, short_scale=True):
     """
@@ -138,6 +162,7 @@ def extractnumber_en(text, short_scale=True):
     """
 
     def _normalize(text):
+        text = text.lower()
         erases = ["the", "of", "a", "an", "to", "positive", "plus"]
         replaces = {
             "exponentiated": "power",
@@ -146,8 +171,14 @@ def extractnumber_en(text, short_scale=True):
             "by": "times"  # scientific notation
         }
         check_duplicates = ["power"]
+        # cardinals
+        cards = [CARDINAL_STRING_EN[c] for c in CARDINAL_STRING_EN.keys()]
+
         words = text.split(" ")
         for idx, word in enumerate(words):
+            prev_word = words[idx - 1] if idx > 0 else ""
+            if word == "power" and prev_word in cards:
+                words[idx - 1] = NUM_STRING_EN[cards.index(prev_word) + 1]
             if word in erases:
                 words[idx] = ""
             elif word in replaces.keys():
