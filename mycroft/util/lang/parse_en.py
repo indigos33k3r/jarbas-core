@@ -179,6 +179,8 @@ def extractnumber_en(text, short_scale=True):
             prev_word = words[idx - 1] if idx > 0 else ""
             if word == "power" and prev_word in cards:
                 words[idx - 1] = NUM_STRING_EN[cards.index(prev_word) + 1]
+            elif prev_word == "power" and word in cards:
+                words[idx] = word = NUM_STRING_EN[cards.index(word) + 1]
             if word in erases:
                 words[idx] = ""
             elif word in replaces.keys():
