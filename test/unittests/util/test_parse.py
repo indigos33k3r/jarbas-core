@@ -106,7 +106,8 @@ class TestNormalize(unittest.TestCase):
                                        "by 10 to the power of minus eleven"),
                          6.67408e-11)
         self.assertEqual(extractnumber("planck constant is 4.1356677 "
-                                       "by 10 to the power of minus 15 electron volts"),
+                                       "by 10 to the power of minus 15 "
+                                       "electron volts"),
                          4.1356677e-15)
         self.assertEqual(extractnumber("666 by 10 elevated to 9"), 666e9)
         self.assertEqual(extractnumber("666 times 10 to the power of 9"),
