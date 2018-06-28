@@ -106,57 +106,24 @@ class TestNormalize(unittest.TestCase):
         self.assertEqual(extractnumber("minus 2"), -2)
         self.assertEqual(extractnumber("negative seventy"), -70)
         self.assertEqual(extractnumber("thousand million"), 1000000000)
-        self.assertEqual(extractnumber("gravitational constant is 6.67408 "
-                                       "by 10 to the power of minus eleven"),
-                         6.67408e-11)
-        self.assertEqual(extractnumber("planck constant is 4.1356677 "
-                                       "by 10 to the power of minus 15 "
-                                       "electron volts"),
-                         4.1356677e-15)
-        self.assertEqual(extractnumber("666 by 10 elevated to 9"), 666e9)
-        self.assertEqual(extractnumber("666 times 10 to the power of 9"),
-                         666e9)
-        self.assertEqual(extractnumber("666 times 10 to the power of minus 9"),
-                         666e-9)
-        self.assertEqual(extractnumber("666 by 10 to the power of 9"),
-                         666e9)
-        self.assertEqual(extractnumber("666 times 10 exponentiated to 9"),
-                         666e9)
-        self.assertEqual(extractnumber("666 times 10 raised to 9"),
-                         666e9)
-        self.assertEqual(extractnumber("666 times 10 elevated to 9"),
-                         666e9)
-        self.assertEqual(extractnumber("negative 666 by 10 elevated to "
-                                       "power 9"), -666e9)
-        self.assertEqual(extractnumber("sixty six times ten to the "
-                                       "power of nine"), 66e9)
-        self.assertEqual(
-            extractnumber("six hundred sixty six times ten to the "
-                          "power of nine"), 666e9)
-        self.assertEqual(extractnumber("six hundred sixty six by ten "
-                                       "to the 9 power"), 666e9)
-        self.assertEqual(
-            extractnumber("six hundred sixty six by ten to the minus 9 power"),
-            666e-9)
-        self.assertEqual(
-            extractnumber("six dot sixty six times ten to the power of six"),
-            6.66e6)
-        self.assertEqual(
-            extractnumber("six dot sixty six times ten to the ninth power"),
-            6.66e9)
-        self.assertEqual(
-            extractnumber("sixty six times ten to the sixth power"),
-            66e6)
-        self.assertEqual(extractnumber("666 times 10 raised to the ninth"),
-                         666e9)
-        self.assertEqual(extractnumber("sixth sixth"),
-                         1 / 6 / 6)
+        self.assertEqual(extractnumber("sixth third"),
+                         1 / 6 / 3)
+        self.assertEqual(extractnumber("sixth third", ordinals=True),
+                         3)
+        self.assertEqual(extractnumber("thirty second"), 30)
+        self.assertEqual(extractnumber("thirty second", ordinals=True), 32)
+        self.assertEqual(extractnumber("this is the billionth test",
+                                       ordinals=True), 1e09)
+        self.assertEqual(extractnumber("this is the billionth test"), 1e-9)
+        self.assertEqual(extractnumber("this is the billionth test",
+                                       ordinals=True,
+                                       short_scale=False), 1e12)
+        self.assertEqual(extractnumber("this is the billionth test",
+                                       short_scale=False), 1e-12)
         # TODO handle this case
         # self.assertEqual(
         #    extractnumber("6 dot six six six"),
         #    6.666)
-        self.assertEqual(extractnumber("thirty second"), 30)
-        self.assertEqual(extractnumber("thirty second", ordinals=True), 32)
 
     def test_extractdatetime_en(self):
         def extractWithFormat(text):

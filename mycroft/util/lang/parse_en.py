@@ -148,18 +148,18 @@ SHORT_ORDINAL_STRING_EN = {
     70: "seventieth",
     80: "eightieth",
     90: "ninetieth",
-    10e-3: "hundredth",
-    1e-3: "thousandth",
-    1e-6: "millionth",
-    1e-9: "billionth",
-    1e-12: "trillionth",
-    1e-15: "quadrillionth",
-    1e-18: "quintillionth",
-    1e-21: "sextillionth",
-    1e-24: "septillionth",
-    1e-27: "octillionth",
-    1e-30: "nonillionth",
-    1e-33: "decillionth"
+    10e3: "hundredth",
+    1e3: "thousandth",
+    1e6: "millionth",
+    1e9: "billionth",
+    1e12: "trillionth",
+    1e15: "quadrillionth",
+    1e18: "quintillionth",
+    1e21: "sextillionth",
+    1e24: "septillionth",
+    1e27: "octillionth",
+    1e30: "nonillionth",
+    1e33: "decillionth"
     # TODO > 1e-33
 }
 
@@ -191,21 +191,20 @@ LONG_ORDINAL_STRING_EN = {
     70: "seventieth",
     80: "eightieth",
     90: "ninetieth",
-    10e-3: "hundredth",
-    1e-3: "thousandth",
-    1e-6: "millionth",
-    1e-12: "billionth",
-    1e-18: "trillionth",
-    1e-24: "quadrillionth",
-    1e-30: "quintillionth",
-    1e-36: "sextillionth",
-    1e-42: "septillionth",
-    1e-48: "octillionth",
-    1e-54: "nonillionth",
-    1e-60: "decillionth"
-    # TODO > 1e-60
+    10e3: "hundredth",
+    1e3: "thousandth",
+    1e6: "millionth",
+    1e12: "billionth",
+    1e18: "trillionth",
+    1e24: "quadrillionth",
+    1e30: "quintillionth",
+    1e36: "sextillionth",
+    1e42: "septillionth",
+    1e48: "octillionth",
+    1e54: "nonillionth",
+    1e60: "decillionth"
+    # TODO > 1e60
 }
-
 
 
 def extractnumber_en(text, short_scale=True, ordinals=False):
@@ -225,49 +224,6 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
 
     """
 
-    def _normalize(text):
-        text = text.lower()
-        erases = ["the", "of", "a", "an", "to", "positive", "plus"]
-        replaces = {
-            "exponentiated": "power",
-            "raised": "power",
-            "elevated": "power",
-            "by": "times"  # scientific notation
-        }
-        check_duplicates = ["power"]
-        # cardinals
-        if short_scale:
-            cards = [SHORT_ORDINAL_STRING_EN[c]
-                     for c in SHORT_ORDINAL_STRING_EN.keys()]
-        else:
-            cards = [LONG_ORDINAL_STRING_EN[c]
-                     for c in LONG_ORDINAL_STRING_EN.keys()]
-        words = text.split(" ")
-        for idx, word in enumerate(words):
-            prev_word = words[idx - 1] if idx > 0 else ""
-            if word == "power" and prev_word in cards:
-                i = cards.index(prev_word) + 1
-                # TODO > 20
-                if i <= 20:
-                    words[idx - 1] = NUM_STRING_EN[i]
-            elif prev_word == "power" and word in cards:
-                i = cards.index(word) + 1
-                # TODO > 20
-                if i <= 20:
-                    words[idx] = word = NUM_STRING_EN[i]
-            if word in erases:
-                words[idx] = ""
-            elif word in replaces.keys():
-                words[idx] = replaces[word]
-                if replaces[word] in check_duplicates and \
-                        replaces[word] in " ".join(words[:idx]):
-                    words[idx] = ""
-            if word in check_duplicates and word in " ".join(words[:idx]):
-                words[idx] = ""
-
-        return " ".join(words).rstrip().lstrip()
-
-    text = _normalize(text)
     string_num_en = {
                      "half": 0.5,
                      "halves": 0.5,
@@ -279,11 +235,16 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
         num_string = NUM_STRING_EN[num]
         string_num_en[num_string] = num
 
-    # first, second
+    # first, second...
     if ordinals:
-        for num in ORDINALS_EN:
-            num_string = ORDINALS_EN[num]
-            string_num_en[num_string] = num
+        if short_scale:
+            for num in SHORT_ORDINAL_STRING_EN:
+                num_string = SHORT_ORDINAL_STRING_EN[num]
+                string_num_en[num_string] = num
+        else:
+            for num in LONG_ORDINAL_STRING_EN:
+                num_string = LONG_ORDINAL_STRING_EN[num]
+                string_num_en[num_string] = num
 
     # negate next number (-2 = 0 - 2)
     negatives = ["negative", "minus"]
@@ -377,11 +338,11 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
         # is this a spoken fraction?
         # half cup
         if not val:
-            val = isFractional_en(word)
+            val = isFractional_en(word, short_scale=short_scale)
 
         # 2 fifths
         if not ordinals:
-            next_value = isFractional_en(next_word)
+            next_value = isFractional_en(next_word, short_scale=short_scale)
             if next_value:
                 if not val:
                     val = 1
@@ -1048,12 +1009,13 @@ def extract_datetime_en(string, currentDate=None):
     return [extractedDate, resultStr]
 
 
-def isFractional_en(input_str):
+def isFractional_en(input_str, short_scale=True):
     """
     This function takes the given text and checks if it is a fraction.
 
     Args:
         input_str (str): the string to check if fractional
+        short_scale (bool): use short scale if True, long scale if False
     Returns:
         (bool) or (float): False if not a fraction, otherwise the fraction
 
@@ -1061,14 +1023,18 @@ def isFractional_en(input_str):
     if input_str.endswith('s', -1):
         input_str = input_str[:len(input_str) - 1]  # e.g. "fifths"
 
-    aFrac = ["whole", "half", "third", "fourth", "fifth", "sixth",
-             "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"]
+    fracts = {"whole": 1, "half": 2, "halve": 2, "quarter": 4}
+    if short_scale:
+        for num in SHORT_ORDINAL_STRING_EN:
+            if num > 2:
+                fracts[SHORT_ORDINAL_STRING_EN[num]] = num
+    else:
+        for num in LONG_ORDINAL_STRING_EN:
+            if num > 2:
+                fracts[LONG_ORDINAL_STRING_EN[num]] = num
 
-    if input_str.lower() in aFrac:
-        return 1.0 / (aFrac.index(input_str) + 1)
-    if input_str == "quarter":
-        return 1.0 / 4
-
+    if input_str.lower() in fracts:
+        return 1.0 / fracts[input_str.lower()]
     return False
 
 
