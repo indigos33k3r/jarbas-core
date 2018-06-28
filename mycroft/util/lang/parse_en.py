@@ -120,8 +120,8 @@ SHORT_SCALE_EN = {
     10e100: "googol"
 }
 
-ORDINALS_EN = {
-    1: "first",
+SHORT_ORDINAL_STRING_EN = {
+    1: 'first',
     2: 'second',
     3: 'third',
     4: 'fourth',
@@ -140,8 +140,72 @@ ORDINALS_EN = {
     17: 'seventeenth',
     18: 'eighteenth',
     19: 'nineteenth',
-    20: 'twentieth'
+    20: 'twentieth',
+    30: 'thirtieth',
+    40: "fortieth",
+    50: "fiftieth",
+    60: "sixtieth",
+    70: "seventieth",
+    80: "eightieth",
+    90: "ninetieth",
+    10e-3: "hundredth",
+    1e-3: "thousandth",
+    1e-6: "millionth",
+    1e-9: "billionth",
+    1e-12: "trillionth",
+    1e-15: "quadrillionth",
+    1e-18: "quintillionth",
+    1e-21: "sextillionth",
+    1e-24: "septillionth",
+    1e-27: "octillionth",
+    1e-30: "nonillionth",
+    1e-33: "decillionth"
+    # TODO > 1e-33
 }
+
+LONG_ORDINAL_STRING_EN = {
+    1: 'first',
+    2: 'second',
+    3: 'third',
+    4: 'fourth',
+    5: 'fifth',
+    6: 'sixth',
+    7: 'seventh',
+    8: 'eighth',
+    9: 'ninth',
+    10: 'tenth',
+    11: 'eleventh',
+    12: 'twelfth',
+    13: 'thirteenth',
+    14: 'fourteenth',
+    15: 'fifteenth',
+    16: 'sixteenth',
+    17: 'seventeenth',
+    18: 'eighteenth',
+    19: 'nineteenth',
+    20: 'twentieth',
+    30: 'thirtieth',
+    40: "fortieth",
+    50: "fiftieth",
+    60: "sixtieth",
+    70: "seventieth",
+    80: "eightieth",
+    90: "ninetieth",
+    10e-3: "hundredth",
+    1e-3: "thousandth",
+    1e-6: "millionth",
+    1e-12: "billionth",
+    1e-18: "trillionth",
+    1e-24: "quadrillionth",
+    1e-30: "quintillionth",
+    1e-36: "sextillionth",
+    1e-42: "septillionth",
+    1e-48: "octillionth",
+    1e-54: "nonillionth",
+    1e-60: "decillionth"
+    # TODO > 1e-60
+}
+
 
 
 def extractnumber_en(text, short_scale=True, ordinals=False):
@@ -160,6 +224,50 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
                                   if number not found
 
     """
+
+    def _normalize(text):
+        text = text.lower()
+        erases = ["the", "of", "a", "an", "to", "positive", "plus"]
+        replaces = {
+            "exponentiated": "power",
+            "raised": "power",
+            "elevated": "power",
+            "by": "times"  # scientific notation
+        }
+        check_duplicates = ["power"]
+        # cardinals
+        if short_scale:
+            cards = [SHORT_ORDINAL_STRING_EN[c]
+                     for c in SHORT_ORDINAL_STRING_EN.keys()]
+        else:
+            cards = [LONG_ORDINAL_STRING_EN[c]
+                     for c in LONG_ORDINAL_STRING_EN.keys()]
+        words = text.split(" ")
+        for idx, word in enumerate(words):
+            prev_word = words[idx - 1] if idx > 0 else ""
+            if word == "power" and prev_word in cards:
+                i = cards.index(prev_word) + 1
+                # TODO > 20
+                if i <= 20:
+                    words[idx - 1] = NUM_STRING_EN[i]
+            elif prev_word == "power" and word in cards:
+                i = cards.index(word) + 1
+                # TODO > 20
+                if i <= 20:
+                    words[idx] = word = NUM_STRING_EN[i]
+            if word in erases:
+                words[idx] = ""
+            elif word in replaces.keys():
+                words[idx] = replaces[word]
+                if replaces[word] in check_duplicates and \
+                        replaces[word] in " ".join(words[:idx]):
+                    words[idx] = ""
+            if word in check_duplicates and word in " ".join(words[:idx]):
+                words[idx] = ""
+
+        return " ".join(words).rstrip().lstrip()
+
+    text = _normalize(text)
     string_num_en = {
                      "half": 0.5,
                      "halves": 0.5,
@@ -225,16 +333,17 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
     for c in decimal_marker:
         components = text.split(c)
         if len(components) == 2:
-            if extractnumber_en(components[0]) is not None \
-                    and extractnumber_en(components[1]):
-                return extractnumber_en(components[0]) + float(
-                    "0." + str(extractnumber_en(components[1])).split(".")[0])
+            number = extractnumber_en(components[0])
+            decimal = extractnumber_en(components[1])
+            if number is not None and decimal is not None:
+                # TODO handle number dot number number number
+                if "." not in str(decimal):
+                    return number + float("0." + str(decimal))
 
     aWords = text.split()
     aWords = [word for word in aWords if word not in ["the", "a", "an"]]
     val = None
     prev_val = None
-    negative = False
     to_sum = []
     for idx, word in enumerate(aWords):
 
@@ -280,7 +389,7 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
 
         # is this a negative number?
         if val and prev_word and prev_word in negatives:
-            negative = True
+            val = 0 - val
 
         # let's make sure it isn't a fraction
         if not val:
@@ -291,7 +400,6 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
 
         else:
             prev_val = val
-
             # handle long numbers
             # six hundred sixty six
             # two million five hundred thousand
@@ -299,12 +407,27 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
                 to_sum.append(val)
                 val = 0
                 prev_val = 0
+            # scientific notation
+            elif prev_word == "times" and \
+                    word in ["ten", "10"] and next_word == "power":
+
+                power = int(extractnumber_en(" ".join(aWords[idx:])))
+                val = extractnumber_en(" ".join(aWords[:idx]))
+                if val:
+                    return float(str(val) + "e" + str(power))
+            elif prev_word == "times" and \
+                    word in ["ten", "10"] and \
+                    extractnumber_en(" ".join(aWords[idx:])) \
+                    and text.endswith("power"):
+
+                power = int(extractnumber_en(" ".join(aWords[idx:])))
+                val = extractnumber_en(" ".join(aWords[:idx]))
+                if val:
+                    return float(str(val) + "e" + str(power))
 
     if val is not None:
         for v in to_sum:
             val = val + v
-    if negative:
-        val = 0 - val
     return val
 
 
