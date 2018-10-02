@@ -310,7 +310,10 @@ class MycroftSkill(object):
                            self.handle_enable_intent)
             self.add_event('mycroft.skill.disable_intent',
                            self.handle_disable_intent)
-
+            self.add_event("mycroft.skill.set_cross_context",
+                           self.handle_set_cross_context)
+            self.add_event("mycroft.skill.remove_cross_context",
+                           self.handle_remove_cross_context)
             name = 'mycroft.skills.settings.update'
             func = self.settings.run_poll
             bus.on(name, func)
@@ -967,12 +970,50 @@ class MycroftSkill(object):
         self.bus.emit(Message('add_context',
                               {'context': context, 'word': word}))
 
-    def remove_context(self, context):
+    def handle_set_cross_context(self, message):
         """
-            remove_context removes a keyword from from the context manager.
+            Add global context to intent service
+
+        """
+        context = message.data.get("context")
+        word = message.data.get("word")
+        self.set_context(context, word)
+
+    def handle_remove_cross_context(self, message):
+        """
+            Remove global context from intent service
+
+        """
+        context = message.data.get("context")
+        self.remove_context(context)
+
+    def set_cross_skill_context(self, context, word=''):
+        """
+            Tell all skills to add a context to intent service
+
+            Args:
+                context:    Keyword
+                word:       word connected to keyword
+        """
+        self.bus.emit(Message("mycroft.skill.set_cross_context",
+                              {"context": context, "word": word}))
+
+    def remove_cross_skill_context(self, context):
+        """
+           tell all skills to remove a keyword from the context manager.
         """
         if not isinstance(context, str):
             raise ValueError('context should be a string')
+        self.bus.emit(Message("mycroft.skill.remove_cross_context",
+                              {"context": context}))
+
+    def remove_context(self, context):
+        """
+            remove a keyword from the context manager.
+        """
+        if not isinstance(context, str):
+            raise ValueError('context should be a string')
+        context = to_alnum(self.skill_id) + context
         self.bus.emit(Message('remove_context', {'context': context}))
 
     def register_vocabulary(self, entity, entity_type):
