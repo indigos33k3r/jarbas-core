@@ -20,6 +20,7 @@ import time
 import csv
 import inspect
 import os
+import traceback
 from inspect import signature
 from datetime import datetime, timedelta
 
@@ -122,6 +123,8 @@ def load_skill(skill_descriptor, bus, skill_id, BLACKLISTED_SKILLS=None):
                 callable(skill_module.create_skill)):
             # v2 skills framework
             skill = skill_module.create_skill()
+            if not skill.is_current_language_supported(path):
+                LOG.info("SKILL DOES NOT SUPPORT CURRENT LANGUAGE")
             skill.settings.allow_overwrite = True
             skill.settings.load_skill_settings_from_file()
             skill.bind(bus)
@@ -217,7 +220,8 @@ class MycroftSkill(object):
         self._dir = dirname(abspath(sys.modules[self.__module__].__file__))
         self.settings = SkillSettings(self._dir, self.name)
 
-        self.bus = None
+        self._bus = None
+        self._enclosure = None
         self.bind(bus)
         self.config_core = Configuration.get()
         self.config = self.config_core.get(self.name) or {}
@@ -233,12 +237,40 @@ class MycroftSkill(object):
         self.voc_match_cache = {}
 
     @property
+    def enclosure(self):
+        if self._enclosure:
+            return self._enclosure
+        else:
+            LOG.error("ERROR:  Skill not fully initialized.  Move code from " +
+                      " __init__() to initialize() to correct this.")
+            tb = "Traceback:\n"
+            for line in traceback.format_stack()[:-1]:
+                if line.strip():
+                    tb += line
+            LOG.error(tb)
+            raise Exception("Accessed MycroftSkill.enclosure in __init__")
+
+    @property
+    def bus(self):
+        if self._bus:
+            return self._bus
+        else:
+            LOG.error("ERROR:  Skill not fully initialized.  Move code from " +
+                      " __init__() to initialize() to correct this.")
+            tb = "Traceback:\n"
+            for line in traceback.format_stack()[:-1]:
+                if line.strip():
+                    tb += line
+            LOG.error(tb)
+            raise Exception("Accessed MycroftSkill.bus in __init__")
+
+    @property
     def emitter(self):
         """ Backwards compatibility. This is the same as self.bus.
         TODO: Remove in 19.02
         """
         self.log.warning('self.emitter is deprecated switch to "self.bus"')
-        return self.bus
+        return self._bus
 
     @property
     def location(self):
@@ -274,8 +306,8 @@ class MycroftSkill(object):
             bus: Mycroft messagebus connection
         """
         if bus:
-            self.bus = bus
-            self.enclosure = EnclosureAPI(bus, self.name)
+            self._bus = bus
+            self._enclosure = EnclosureAPI(bus, self.name)
             self.add_event('mycroft.stop', self.__handle_stop)
             self.add_event('mycroft.skill.enable_intent',
                            self.handle_enable_intent)
@@ -286,6 +318,20 @@ class MycroftSkill(object):
             func = self.settings.run_poll
             bus.on(name, func)
             self.events.append((name, func))
+
+    def is_current_language_supported(self, root_directory):
+        # if lang folder in new locale exists, lang is supported
+        locale_path = join(root_directory, 'locale', self.lang)
+        if exists(locale_path):
+            return True
+
+        # also check old path
+        dialog_path = join(root_directory, 'dialog', self.lang)
+        vocab_path = join(root_directory, 'vocab', self.lang)
+        regex_path = join(root_directory, 'regex', self.lang)
+        if exists(dialog_path) or exists(vocab_path) or exists(regex_path):
+            return True
+        return False
 
     def detach(self):
         for (name, intent) in self.registered_intents:
@@ -1153,9 +1199,9 @@ class MycroftSkill(object):
 
             Args:
                 handler:               method to be called
-                when (datetime/int):   local datetime or number of seconds in
-                                       the future when the handler should be
-                                       called
+                when (datetime/int):   datetime (in system timezone) or number
+                                       of seconds in the future when the
+                                       handler should be called
                 data (dict, optional): data to send when the handler is called
                 name (str, optional):  reference name
                                        NOTE: This will not warn or replace a
@@ -1174,9 +1220,10 @@ class MycroftSkill(object):
 
             Args:
                 handler:                method to be called
-                when (datetime):        local time for first calling the
-                                        handler, or None to initially trigger
-                                        <frequency> seconds from now
+                when (datetime):        time (in system timezone) for first
+                                        calling the handler, or None to
+                                        initially trigger <frequency> seconds
+                                        from now
                 frequency (float/int):  time in seconds between calls
                 data (dict, optional):  data to send when the handler is called
                 name (str, optional):   reference name, must be unique
