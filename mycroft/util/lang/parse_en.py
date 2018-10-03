@@ -126,6 +126,49 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
 
     """
 
+    def _normalize(text):
+        text = text.lower()
+        erases = ["the", "of", "a", "an", "to", "positive", "plus"]
+        replaces = {
+            "exponentiated": "power",
+            "raised": "power",
+            "elevated": "power",
+            "by": "times"  # scientific notation
+        }
+        check_duplicates = ["power"]
+        # cardinals
+        if short_scale:
+            cards = [SHORT_ORDINAL_STRING_EN[c]
+                     for c in SHORT_ORDINAL_STRING_EN.keys()]
+        else:
+            cards = [LONG_ORDINAL_STRING_EN[c]
+                     for c in LONG_ORDINAL_STRING_EN.keys()]
+        words = text.split(" ")
+        for idx, word in enumerate(words):
+            prev_word = words[idx - 1] if idx > 0 else ""
+            if word == "power" and prev_word in cards:
+                i = cards.index(prev_word) + 1
+                # TODO > 20
+                if i <= 20:
+                    words[idx - 1] = NUM_STRING_EN[i - 1]
+            elif prev_word == "power" and word in cards:
+                i = cards.index(word) + 1
+                # TODO > 20
+                if i <= 20:
+                    words[idx] = word = NUM_STRING_EN[i - 1]
+            if word in erases:
+                words[idx] = ""
+            elif word in replaces.keys():
+                words[idx] = replaces[word]
+                if replaces[word] in check_duplicates and \
+                        replaces[word] in " ".join(words[:idx]):
+                    words[idx] = ""
+            if word in check_duplicates and word in " ".join(words[:idx]):
+                words[idx] = ""
+
+        return " ".join(words).rstrip().lstrip()
+
+    text = _normalize(text)
     string_num_en = {
                      "half": 0.5,
                      "halves": 0.5,
@@ -201,7 +244,8 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
         if len(components) == 2:
             number = extractnumber_en(components[0])
             decimal = extractnumber_en(components[1])
-            if number is not None and decimal is not None:
+            if number is not False and decimal is not False:
+                number = extractnumber_en(components[0])
                 # TODO handle number dot number number number
                 if "." not in str(decimal):
                     return number + float("0." + str(decimal))
@@ -273,6 +317,23 @@ def extractnumber_en(text, short_scale=True, ordinals=False):
                 to_sum.append(val)
                 val = 0
                 prev_val = 0
+            # scientific notation
+            elif prev_word == "times" and \
+                    word in ["ten", "10"] and next_word == "power":
+
+                power = int(extractnumber_en(" ".join(aWords[idx:])))
+                val = extractnumber_en(" ".join(aWords[:idx]))
+                if val:
+                    return float(str(val) + "e" + str(power))
+            elif prev_word == "times" and \
+                    word in ["ten", "10"] and \
+                    extractnumber_en(" ".join(aWords[idx:])) \
+                    and text.endswith("power"):
+
+                power = int(extractnumber_en(" ".join(aWords[idx:])))
+                val = extractnumber_en(" ".join(aWords[:idx]))
+                if val:
+                    return float(str(val) + "e" + str(power))
 
     if val is not None:
         for v in to_sum:
