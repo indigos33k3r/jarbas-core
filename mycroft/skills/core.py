@@ -321,14 +321,16 @@ class MycroftSkill(object):
 
     def is_current_language_supported(self, root_directory):
         # if lang folder in new locale exists, lang is supported
-        locale_path = join(root_directory, 'locale', self.lang)
+        locale_path = get_language_dir(join(root_directory, 'locale'),
+                                       self.lang)
         if exists(locale_path):
             return True
 
         # also check old path
-        dialog_path = join(root_directory, 'dialog', self.lang)
-        vocab_path = join(root_directory, 'vocab', self.lang)
-        regex_path = join(root_directory, 'regex', self.lang)
+        dialog_path = get_language_dir(join(root_directory, 'dialog'),
+                                       self.lang)
+        vocab_path = get_language_dir(join(root_directory, 'vocab'), self.lang)
+        regex_path = get_language_dir(join(root_directory, 'regex'), self.lang)
         if exists(dialog_path) or exists(vocab_path) or exists(regex_path):
             return True
         return False
