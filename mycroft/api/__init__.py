@@ -14,6 +14,7 @@
 #
 from copy import copy
 
+import yagmail
 import json
 import requests
 from requests import HTTPError, RequestException
@@ -53,7 +54,7 @@ class Api(object):
                                     SYSTEM_CONFIG,
                                     USER_CONFIG],
                                    cache=False)
-        config_server = config.get("server")
+        config_server = config.get("server", {})
         self.url = config_server.get("url")
         self.version = config_server.get("version")
         self.identity = IdentityManager.get()
@@ -267,12 +268,36 @@ class DeviceApi(Api):
                      "enclosureVersion": version.get("enclosureVersion")}
         })
 
-    def send_email(self, title, body, sender):
+    def send_email_backend(self, title, body, sender):
+        """ send email to self using mycroft.home """
         return self.request({
             "method": "PUT",
             "path": "/" + self.identity.uuid + "/message",
             "json": {"title": title, "body": body, "sender": sender}
         })
+
+    def send_email(self, title, body, sender=None):
+        """ send email to self using device mail settings """
+        # sender is meant to id which skill triggered it and is
+        # currently ignored / backwards compatibility
+        config = Configuration.get().get("email", {})
+        my_mail = config.get("mail")
+        my_pass = config.get("password")
+        with yagmail.SMTP(my_mail, my_pass) as yag:
+            yag.send(my_mail, title, body)
+        return True
+
+    def send_email_to(self, title, body, recipient=None, sender=None):
+        """ send email using device mail settings """
+        # sender is meant to id which skill triggered it and is
+        # currently ignored / backwards compatibility
+        config = Configuration.get().get("email", {})
+        my_mail = config.get("mail")
+        my_pass = config.get("password")
+        recipient = recipient or my_mail
+        with yagmail.SMTP(my_mail, my_pass) as yag:
+            yag.send(recipient, title, body)
+        return True
 
     def report_metric(self, name, data):
         return self.request({
