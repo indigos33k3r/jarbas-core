@@ -314,7 +314,9 @@ def extract_datetime_en(string, dateNow, default_time):
             .replace(' the ', ' ').replace(' a ', ' ').replace(' an ', ' ') \
             .replace("o' clock", "o'clock").replace("o clock", "o'clock") \
             .replace("o ' clock", "o'clock").replace("o 'clock", "o'clock") \
-            .replace("oclock", "o'clock")
+            .replace("oclock", "o'clock").replace("couple", "2")\
+            .replace("centuries", "century").replace("decades", "decade")\
+            .replace("millenniums", "millennium")
 
         wordList = s.split()
         for idx, word in enumerate(wordList):
@@ -358,7 +360,7 @@ def extract_datetime_en(string, dateNow, default_time):
     timeQualifiersAM = ['morning']
     timeQualifiersPM = ['afternoon', 'evening', 'tonight', 'night']
     timeQualifiersList = set(timeQualifiersAM + timeQualifiersPM)
-    markers = ['at', 'in', 'on', 'by', 'this', 'around', 'for', 'of']
+    markers = ['at', 'in', 'on', 'by', 'this', 'around', 'for', 'of', "within"]
     days = ['monday', 'tuesday', 'wednesday',
             'thursday', 'friday', 'saturday', 'sunday']
     months = ['january', 'february', 'march', 'april', 'may', 'june',
@@ -366,6 +368,7 @@ def extract_datetime_en(string, dateNow, default_time):
               'december']
     monthsShort = ['jan', 'feb', 'mar', 'apr', 'may', 'june', 'july', 'aug',
                    'sept', 'oct', 'nov', 'dec']
+    year_multiples = ["decade", "century", "millennium"]
 
     words = clean_string(string)
 
@@ -387,9 +390,22 @@ def extract_datetime_en(string, dateNow, default_time):
             resultStr = ' '.join(resultStr.split())
             extractedDate = dateNow.replace(microsecond=0)
             return [extractedDate, resultStr]
+        elif wordNext in year_multiples:
+            multiplier = None
+            if is_numeric(word):
+                multiplier = extractnumber_en(word)
+            multiplier = multiplier or 1
+            multiplier = int(multiplier)
+            used += 2
+            if wordNext == "decade":
+                yearOffset = multiplier * 10
+            elif wordNext == "century":
+                yearOffset = multiplier * 100
+            elif wordNext == "millennium":
+                yearOffset = multiplier * 1000
         elif word in timeQualifiersList:
             timeQualifier = word
-            # parse today, tomorrow, day after tomorrow
+        # parse today, tomorrow, day after tomorrow
         elif word == "today" and not fromFlag:
             dayOffset = 0
             used += 1
@@ -599,6 +615,8 @@ def extract_datetime_en(string, dateNow, default_time):
                     if words[idx - 3] == "this":
                         daySpecified = True
                 words[idx - 2] = ""
+            elif wordPrev == "within":
+                hrOffset = 1
             else:
                 hrOffset = 1
             if wordPrevPrev in markers:
@@ -610,6 +628,16 @@ def extract_datetime_en(string, dateNow, default_time):
             hrAbs = -1
             minAbs = -1
             # parse 5:00 am, 12:00 p.m., etc
+        # parse in a minute
+        elif word == "minute" and wordPrev == "in":
+            minOffset = 1
+            words[idx - 1] = ""
+            used += 1
+        # parse in a second
+        elif word == "second" and wordPrev == "in":
+            secOffset = 1
+            words[idx - 1] = ""
+            used += 1
         elif word[0].isdigit():
             isTime = True
             strHH = ""
@@ -826,6 +854,7 @@ def extract_datetime_en(string, dateNow, default_time):
 
             if (not military and
                     remainder not in ['am', 'pm', 'hours', 'minutes',
+                                      "second", "seconds",
                                       "hour", "minute"] and
                     ((not daySpecified) or dayOffset < 1)):
                 # ambiguous time, detect whether they mean this evening or
